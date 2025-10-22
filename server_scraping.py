@@ -127,30 +127,68 @@ async def handle_scrape(request: web.Request) -> web.Response:
     Returns:
         Response JSON con los datos scrapeados
     """
+    client_ip = request.remote
+    
     try:
-        # Obtener URL de los parámetros
-        url = request.query.get('url')
+        # Obtener URL de los parámetros (soporta GET y POST)
+        if request.method == 'GET':
+            url = request.query.get('url')
+        else:  # POST
+            try:
+                data = await request.json()
+                url = data.get('url')
+            except Exception:
+                url = request.query.get('url')
         
         if not url:
+            logger.warning(f"Request sin URL desde {client_ip}")
             return web.json_response(
-                {'status': 'error', 'message': 'URL parameter is required'},
+                {
+                    'status': 'error',
+                    'message': 'URL parameter is required',
+                    'details': 'Provide url as query parameter (?url=...) or in JSON body'
+                },
                 status=400
             )
         
-        # Por ahora, respuesta básica (se implementará en Etapa 3)
+        # Validación básica de URL
+        if not url.startswith(('http://', 'https://')):
+            logger.warning(f"URL inválida desde {client_ip}: {url}")
+            return web.json_response(
+                {
+                    'status': 'error',
+                    'message': 'Invalid URL format',
+                    'details': 'URL must start with http:// or https://'
+                },
+                status=400
+            )
+        
+        logger.info(f"Scraping request recibido desde {client_ip} para URL: {url}")
+        
+        # Por ahora, respuesta básica (funcionalidad completa en Etapa 3)
+        from datetime import datetime
         response_data = {
             'url': url,
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
             'status': 'success',
-            'message': 'Scraping endpoint ready (functionality to be implemented)'
+            'message': 'Scraping endpoint operational (full implementation in next stage)',
+            'scraping_data': {
+                'note': 'Scraping functionality will be implemented in Stage 3'
+            }
         }
         
-        logger.info(f"Received scraping request for URL: {url}")
         return web.json_response(response_data)
         
+    except web.HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error handling scrape request: {e}", exc_info=True)
+        logger.error(f"Error procesando request desde {client_ip}: {e}", exc_info=True)
         return web.json_response(
-            {'status': 'error', 'message': 'Internal server error'},
+            {
+                'status': 'error',
+                'message': 'Internal server error',
+                'details': str(e) if logger.level == logging.DEBUG else None
+            },
             status=500
         )
 
@@ -166,10 +204,77 @@ async def handle_health(request: web.Request) -> web.Response:
     Returns:
         Response JSON con el estado del servidor
     """
+    from datetime import datetime
+    
+    config = request.app['config']
+    
     return web.json_response({
         'status': 'healthy',
-        'service': 'scraping-server'
+        'service': 'scraping-server',
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'workers': config['workers'],
+        'processor': {
+            'host': config['processor_host'],
+            'port': config['processor_port']
+        }
     })
+
+
+@web.middleware
+async def error_middleware(request: web.Request, handler):
+    """
+    Middleware para manejo centralizado de errores.
+    
+    Args:
+        request: Request de aiohttp
+        handler: Handler a ejecutar
+        
+    Returns:
+        Response del handler o error formateado
+    """
+    try:
+        return await handler(request)
+    except web.HTTPException as e:
+        # Errores HTTP esperados (redirects, not found, etc.)
+        raise
+    except Exception as e:
+        logger.error(f"Error no manejado en {request.path}: {e}", exc_info=True)
+        return web.json_response(
+            {
+                'status': 'error',
+                'message': 'Internal server error',
+                'path': request.path
+            },
+            status=500
+        )
+
+
+@web.middleware
+async def logging_middleware(request: web.Request, handler):
+    """
+    Middleware para logging de todas las requests.
+    
+    Args:
+        request: Request de aiohttp
+        handler: Handler a ejecutar
+        
+    Returns:
+        Response del handler
+    """
+    import time
+    
+    start_time = time.time()
+    logger.info(f"Request: {request.method} {request.path} desde {request.remote}")
+    
+    try:
+        response = await handler(request)
+        duration = (time.time() - start_time) * 1000  # en milisegundos
+        logger.info(f"Response: {response.status} para {request.path} ({duration:.2f}ms)")
+        return response
+    except Exception as e:
+        duration = (time.time() - start_time) * 1000
+        logger.error(f"Error en {request.path} después de {duration:.2f}ms: {e}")
+        raise
 
 
 def create_app() -> web.Application:
@@ -179,12 +284,18 @@ def create_app() -> web.Application:
     Returns:
         Aplicación aiohttp configurada
     """
-    app = web.Application()
+    # Crear app con middlewares
+    app = web.Application(middlewares=[
+        logging_middleware,
+        error_middleware
+    ])
     
     # Configurar rutas
     app.router.add_get('/scrape', handle_scrape)
     app.router.add_post('/scrape', handle_scrape)
     app.router.add_get('/health', handle_health)
+    
+    logger.info("Aplicación aiohttp creada con middlewares configurados")
     
     return app
 
