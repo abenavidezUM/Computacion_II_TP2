@@ -1,0 +1,57 @@
+# Archivos de planificación y consigna (no pushear)
+consigna.txt
+ROADMAP.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Logs
+*.log
+logs/
+
+# Screenshots y archivos temporales
+screenshots/
+temp/
+*.png
+*.jpg
+*.jpeg
+!docs/*.png
+
+# Configuración local
+.env
+config.local.py
+
+# Selenium/Browser drivers
+chromedriver
+geckodriver
+*.exe
+
+# Build
+build/
+dist/
+*.egg-info/
+

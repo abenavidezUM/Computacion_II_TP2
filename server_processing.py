@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""
+Servidor de Procesamiento Distribuido (Parte B)
+Utiliza multiprocessing para ejecutar tareas CPU-bound en paralelo.
+"""
+
+import argparse
+import logging
+import multiprocessing
+import signal
+import socketserver
+import sys
+from ipaddress import ip_address, AddressValueError
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+def validate_ip_address(ip_string: str) -> str:
+    """
+    Valida que la dirección IP sea válida (IPv4 o IPv6).
+    
+    Args:
+        ip_string: String con la dirección IP a validar
+        
+    Returns:
+        String con la IP validada
+        
+    Raises:
+        argparse.ArgumentTypeError: Si la IP no es válida
+    """
+    try:
+        ip_address(ip_string)
+        return ip_string
+    except AddressValueError:
+        raise argparse.ArgumentTypeError(f"'{ip_string}' no es una dirección IP válida")
+
+
+def validate_port(port_string: str) -> int:
+    """
+    Valida que el puerto sea un número válido (1-65535).
+    
+    Args:
+        port_string: String con el puerto a validar
+        
+    Returns:
+        Puerto como entero
+        
+    Raises:
+        argparse.ArgumentTypeError: Si el puerto no es válido
+    """
+    try:
+        port = int(port_string)
+        if 1 <= port <= 65535:
+            return port
+        raise ValueError
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"El puerto debe estar entre 1 y 65535")
+
+
+def parse_arguments():
+    """
+    Parsea los argumentos de línea de comandos.
+    
+    Returns:
+        Namespace con los argumentos parseados
+    """
+    parser = argparse.ArgumentParser(
+        description='Servidor de Procesamiento Distribuido',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    parser.add_argument(
+        '-i', '--ip',
+        type=validate_ip_address,
+        required=True,
+        metavar='IP',
+        help='Dirección de escucha'
+    )
+    
+    parser.add_argument(
+        '-p', '--port',
+        type=validate_port,
+        required=True,
+        metavar='PORT',
+        help='Puerto de escucha'
+    )
+    
+    parser.add_argument(
+        '-n', '--processes',
+        type=int,
+        default=multiprocessing.cpu_count(),
+        metavar='PROCESSES',
+        help=f'Número de procesos en el pool (default: {multiprocessing.cpu_count()})'
+    )
+    
+    return parser.parse_args()
+
+
+class ProcessingRequestHandler(socketserver.BaseRequestHandler):
+    """
+    Handler para procesar requests del servidor de scraping.
+    Cada request se procesa en un worker del pool de procesos.
+    """
+    
+    def handle(self):
+        """
+        Maneja una conexión entrante.
+        """
+        try:
+            # Por ahora, implementación básica (se completará en Etapa 4-5)
+            logger.info(f"Conexión recibida de {self.client_address}")
+            
+            # Respuesta básica
+            response = b"Processing server ready\n"
+            self.request.sendall(response)
+            
+        except Exception as e:
+            logger.error(f"Error manejando request: {e}", exc_info=True)
+
+
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    """
+    Servidor TCP que maneja múltiples conexiones en threads separados.
+    """
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def initialize_process_pool(num_processes: int):
+    """
+    Inicializa el pool de procesos para tareas CPU-bound.
+    
+    Args:
+        num_processes: Número de procesos en el pool
+        
+    Returns:
+        ProcessPoolExecutor configurado
+    """
+    from concurrent.futures import ProcessPoolExecutor
+    
+    pool = ProcessPoolExecutor(max_workers=num_processes)
+    logger.info(f"Pool de procesos inicializado con {num_processes} workers")
+    
+    return pool
+
+
+def shutdown_handler(signum, frame):
+    """
+    Maneja las señales de shutdown (SIGINT, SIGTERM).
+    
+    Args:
+        signum: Número de señal
+        frame: Frame actual
+    """
+    logger.info("Señal de shutdown recibida, deteniendo servidor...")
+    sys.exit(0)
+
+
+def start_server(host: str, port: int, num_processes: int):
+    """
+    Inicia el servidor de procesamiento.
+    
+    Args:
+        host: Dirección IP de escucha
+        port: Puerto de escucha
+        num_processes: Número de procesos en el pool
+    """
+    # Configurar handlers de señales
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    
+    # Inicializar pool de procesos
+    process_pool = initialize_process_pool(num_processes)
+    
+    try:
+        # Crear y configurar servidor
+        server = ThreadedTCPServer((host, port), ProcessingRequestHandler)
+        
+        # Guardar pool en el servidor para acceso desde handlers
+        server.process_pool = process_pool
+        
+        logger.info(f"Servidor de procesamiento iniciado en {host}:{port}")
+        logger.info(f"Pool de procesos: {num_processes} workers")
+        logger.info("Esperando conexiones...")
+        
+        # Iniciar servidor
+        server.serve_forever()
+        
+    except KeyboardInterrupt:
+        logger.info("Servidor detenido por el usuario")
+    except Exception as e:
+        logger.error(f"Error en el servidor: {e}", exc_info=True)
+    finally:
+        logger.info("Cerrando pool de procesos...")
+        process_pool.shutdown(wait=True)
+        logger.info("Servidor detenido")
+
+
+def main():
+    """
+    Función principal del servidor.
+    """
+    args = parse_arguments()
+    
+    try:
+        start_server(
+            host=args.ip,
+            port=args.port,
+            num_processes=args.processes
+        )
+    except Exception as e:
+        logger.error(f"Error fatal: {e}", exc_info=True)
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+
