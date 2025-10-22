@@ -230,21 +230,27 @@ pytest tests/test_processor.py -v
 
 ### Estado Actual
 
-**Etapa 1 - Completada:**
+**Etapa 1 - Completada ✓**
 - Estructura de carpetas creada
 - CLI implementado para ambos servidores
 - Servidores base funcionales
 - Cliente de prueba básico
 
+**Etapa 2 - Completada ✓**
+- Servidor HTTP asíncrono completamente funcional
+- Soporte IPv4 e IPv6 verificado
+- Middlewares de logging y error handling
+- Endpoints /scrape y /health operativos
+- Validación robusta de URLs y parámetros
+
 **Próximas etapas:**
-- Etapa 2: Servidor HTTP asíncrono completo
-- Etapa 3: Implementación de scraping
+- Etapa 3: Implementación de scraping con BeautifulSoup
 - Etapa 4-5: Comunicación entre servidores
 - Etapa 6-8: Funcionalidades de procesamiento
 
 ### Contribuir
 
-Este es un proyecto académico. Las contribuciones están limitadas al equipo de desarrollo.
+
 
 ## Tecnologías Utilizadas
 
