@@ -34,7 +34,7 @@ Respuesta JSON consolidada
 
 ```bash
 git clone https://github.com/abenavidezUM/Computacion_II_TP2.git
-cd Computacion_II_TP2
+cd Computacion_II_TP2/TP2
 ```
 
 ### 2. Crear entorno virtual (recomendado)
