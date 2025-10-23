@@ -269,6 +269,7 @@ Proyecto académico para Computación II - Facultad de Ingeniería
 ## Autores
 
 - Agustín Benavídez (@abenavidezUM)
+- Legajo: 62344
 
 ## Fecha de Entrega
 

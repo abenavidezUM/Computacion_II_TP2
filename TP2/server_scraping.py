@@ -165,18 +165,58 @@ async def handle_scrape(request: web.Request) -> web.Response:
         
         logger.info(f"Scraping request recibido desde {client_ip} para URL: {url}")
         
-        # Por ahora, respuesta básica (funcionalidad completa en Etapa 3)
+        # Importar módulos de scraping
         from datetime import datetime
+        from bs4 import BeautifulSoup
+        from scraper.async_http import fetch_html
+        from scraper.html_parser import (
+            extract_title, extract_links, count_images, 
+            analyze_structure, extract_image_urls
+        )
+        from scraper.metadata_extractor import extract_meta_tags
+        
+        # Descargar HTML
+        html = await fetch_html(url, timeout=30)
+        
+        if html is None:
+            logger.error(f"No se pudo descargar HTML desde {url}")
+            return web.json_response(
+                {
+                    'status': 'error',
+                    'message': 'Failed to fetch URL',
+                    'details': 'Could not download HTML content (timeout or connection error)'
+                },
+                status=500
+            )
+        
+        # Parsear HTML con BeautifulSoup
+        soup = BeautifulSoup(html, 'lxml')
+        
+        # Extraer información
+        title = extract_title(soup)
+        links = extract_links(soup, url)
+        meta_tags = extract_meta_tags(soup)
+        images_count = count_images(soup)
+        structure = analyze_structure(soup)
+        image_urls = extract_image_urls(soup, url)
+        
+        # Construir respuesta
         response_data = {
             'url': url,
             'timestamp': datetime.utcnow().isoformat() + 'Z',
             'status': 'success',
-            'message': 'Scraping endpoint operational (full implementation in next stage)',
             'scraping_data': {
-                'note': 'Scraping functionality will be implemented in Stage 3'
+                'title': title,
+                'links': links[:50],  # Limitar a primeros 50 enlaces
+                'links_count': len(links),
+                'meta_tags': meta_tags,
+                'images_count': images_count,
+                'image_urls': image_urls[:10],  # Primeras 10 URLs de imágenes
+                'structure': structure
             }
         }
         
+        logger.info(f"Scraping completado exitosamente para {url}")
         return web.json_response(response_data)
         
     except web.HTTPException:

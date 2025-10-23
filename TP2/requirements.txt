@@ -1,6 +1,7 @@
 # HTTP y Servidor Asíncrono
 aiohttp==3.9.1
 aiofiles==23.2.1
+certifi==2023.11.17
 
 # Web Scraping
 beautifulsoup4==4.12.2
