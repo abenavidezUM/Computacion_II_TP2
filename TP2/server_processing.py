@@ -110,17 +110,114 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         """
         Maneja una conexión entrante.
+        Recibe una tarea, la procesa y envía la respuesta.
         """
         try:
-            # Por ahora, implementación básica (se completará en Etapa 4-5)
-            logger.info(f"Conexión recibida de {self.client_address}")
+            logger.info(f"Conexión recibida de {self.client_address[0]}:{self.client_address[1]}")
             
-            # Respuesta básica
-            response = b"Processing server ready\n"
-            self.request.sendall(response)
+            # Importar protocolo
+            import sys
+            sys.path.insert(0, '/Users/agus/Documents/Facultad/Computacion_II/TP2/TP2')
+            from common.protocol import receive_message_sync, send_message_sync
+            
+            # Recibir mensaje del cliente
+            task = receive_message_sync(self.request)
+            
+            if task is None:
+                logger.error("No se pudo recibir la tarea del cliente")
+                return
+            
+            logger.info(f"Tarea recibida: {task.get('task_type', 'unknown')}")
+            
+            # Procesar la tarea
+            response = self.process_task(task)
+            
+            # Enviar respuesta
+            if not send_message_sync(self.request, response):
+                logger.error("No se pudo enviar la respuesta al cliente")
+                return
+            
+            logger.info(f"Respuesta enviada exitosamente")
             
         except Exception as e:
             logger.error(f"Error manejando request: {e}", exc_info=True)
+            # Intentar enviar respuesta de error
+            try:
+                error_response = {
+                    'status': 'error',
+                    'message': str(e)
+                }
+                send_message_sync(self.request, error_response)
+            except:
+                pass
+    
+    def process_task(self, task: dict) -> dict:
+        """
+        Procesa una tarea según su tipo.
+        
+        Args:
+            task: Diccionario con la tarea a procesar
+            
+        Returns:
+            Diccionario con el resultado
+        """
+        task_type = task.get('task_type', 'unknown')
+        
+        try:
+            if task_type == 'test':
+                # Tarea de prueba
+                return {
+                    'status': 'success',
+                    'task_type': 'test',
+                    'message': 'Test task processed successfully',
+                    'echo': task.get('data', {})
+                }
+            
+            elif task_type == 'screenshot':
+                # Placeholder para screenshot (se implementará en Etapa 6)
+                logger.info(f"Screenshot request para: {task.get('url', 'unknown')}")
+                return {
+                    'status': 'success',
+                    'task_type': 'screenshot',
+                    'message': 'Screenshot functionality not yet implemented',
+                    'screenshot': None
+                }
+            
+            elif task_type == 'performance':
+                # Placeholder para análisis de rendimiento (se implementará en Etapa 7)
+                logger.info(f"Performance analysis request para: {task.get('url', 'unknown')}")
+                return {
+                    'status': 'success',
+                    'task_type': 'performance',
+                    'message': 'Performance analysis not yet implemented',
+                    'metrics': {}
+                }
+            
+            elif task_type == 'thumbnails':
+                # Placeholder para thumbnails (se implementará en Etapa 8)
+                logger.info(f"Thumbnail generation request para: {len(task.get('image_urls', []))} imágenes")
+                return {
+                    'status': 'success',
+                    'task_type': 'thumbnails',
+                    'message': 'Thumbnail generation not yet implemented',
+                    'thumbnails': []
+                }
+            
+            else:
+                logger.warning(f"Tipo de tarea desconocido: {task_type}")
+                return {
+                    'status': 'error',
+                    'task_type': task_type,
+                    'message': f'Unknown task type: {task_type}'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error procesando tarea {task_type}: {e}", exc_info=True)
+            return {
+                'status': 'error',
+                'task_type': task_type,
+                'message': f'Error processing task: {str(e)}'
+            }
 
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):

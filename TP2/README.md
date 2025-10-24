@@ -243,9 +243,22 @@ pytest tests/test_processor.py -v
 - Endpoints /scrape y /health operativos
 - Validación robusta de URLs y parámetros
 
+**Etapa 3 - Completada ✓**
+- Cliente HTTP asíncrono con soporte SSL
+- Parsing HTML con BeautifulSoup (lxml)
+- Extracción de título, enlaces, meta tags
+- Análisis de estructura (H1-H6)
+- Conteo y URLs de imágenes
+
+**Etapa 4 - Completada ✓**
+- Protocolo de comunicación [LENGTH][JSON]
+- Servidor TCP con ThreadingTCPServer
+- Pool de procesos con multiprocessing
+- Handler de tareas con tipos múltiples
+- Testing de comunicación exitoso
+
 **Próximas etapas:**
-- Etapa 3: Implementación de scraping con BeautifulSoup
-- Etapa 4-5: Comunicación entre servidores
+- Etapa 5: Integración completa entre servidores
 - Etapa 6-8: Funcionalidades de procesamiento
 
 ### Contribuir
