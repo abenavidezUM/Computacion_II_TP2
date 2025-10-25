@@ -257,9 +257,18 @@ pytest tests/test_processor.py -v
 - Handler de tareas con tipos múltiples
 - Testing de comunicación exitoso
 
+**Etapa 5 - Completada ✓**
+- Integración completa A↔B
+- Endpoint /scrape con parámetro ?process=true
+- Envío automático de tareas al servidor B
+- Combinación de resultados en JSON unificado
+- Testing end-to-end con 3 tests exitosos
+
 **Próximas etapas:**
-- Etapa 5: Integración completa entre servidores
 - Etapa 6-8: Funcionalidades de procesamiento
+  - Screenshots con Selenium
+  - Análisis de rendimiento
+  - Procesamiento de imágenes
 
 ### Contribuir
 

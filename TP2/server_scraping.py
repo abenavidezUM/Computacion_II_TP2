@@ -200,23 +200,92 @@ async def handle_scrape(request: web.Request) -> web.Response:
         structure = analyze_structure(soup)
         image_urls = extract_image_urls(soup, url)
         
-        # Construir respuesta
-        response_data = {
-            'url': url,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
-            'status': 'success',
-            'scraping_data': {
-                'title': title,
-                'links': links[:50],  # Limitar a primeros 50 enlaces
-                'links_count': len(links),
-                'meta_tags': meta_tags,
-                'images_count': images_count,
-                'image_urls': image_urls[:10],  # Primeras 10 URLs de imágenes
-                'structure': structure
-            }
+        # Datos básicos de scraping
+        scraping_data = {
+            'title': title,
+            'links': links[:50],  # Limitar a primeros 50 enlaces
+            'links_count': len(links),
+            'meta_tags': meta_tags,
+            'images_count': images_count,
+            'image_urls': image_urls[:10],  # Primeras 10 URLs de imágenes
+            'structure': structure
         }
         
         logger.info(f"Scraping completado exitosamente para {url}")
+        
+        # Verificar si se solicita procesamiento adicional
+        process = request.query.get('process', 'false').lower() == 'true'
+        
+        if process:
+            # Importar módulo de comunicación
+            from common.protocol import send_to_processor
+            
+            logger.info(f"Enviando tareas de procesamiento para {url}")
+            
+            # Inicializar datos de procesamiento
+            processing_data = {}
+            
+            # Tarea 1: Screenshot (si se solicita)
+            try:
+                screenshot_task = {
+                    'task_type': 'screenshot',
+                    'url': url
+                }
+                screenshot_response = await send_to_processor(
+                    request.app['config']['processor_host'],
+                    request.app['config']['processor_port'],
+                    screenshot_task,
+                    timeout=30
+                )
+                if screenshot_response and screenshot_response.get('status') == 'success':
+                    processing_data['screenshot'] = screenshot_response
+                    logger.info(f"Screenshot task completada para {url}")
+                else:
+                    logger.warning(f"Screenshot task falló para {url}")
+                    processing_data['screenshot'] = {'status': 'error', 'message': 'Screenshot failed'}
+            except Exception as e:
+                logger.error(f"Error en screenshot task: {e}")
+                processing_data['screenshot'] = {'status': 'error', 'message': str(e)}
+            
+            # Tarea 2: Performance (si se solicita)
+            try:
+                performance_task = {
+                    'task_type': 'performance',
+                    'url': url
+                }
+                performance_response = await send_to_processor(
+                    request.app['config']['processor_host'],
+                    request.app['config']['processor_port'],
+                    performance_task,
+                    timeout=30
+                )
+                if performance_response and performance_response.get('status') == 'success':
+                    processing_data['performance'] = performance_response
+                    logger.info(f"Performance task completada para {url}")
+                else:
+                    logger.warning(f"Performance task falló para {url}")
+                    processing_data['performance'] = {'status': 'error', 'message': 'Performance analysis failed'}
+            except Exception as e:
+                logger.error(f"Error en performance task: {e}")
+                processing_data['performance'] = {'status': 'error', 'message': str(e)}
+            
+            # Construir respuesta con procesamiento
+            response_data = {
+                'url': url,
+                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'status': 'success',
+                'scraping_data': scraping_data,
+                'processing_data': processing_data
+            }
+        else:
+            # Respuesta sin procesamiento adicional
+            response_data = {
+                'url': url,
+                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'status': 'success',
+                'scraping_data': scraping_data
+            }
+        
         return web.json_response(response_data)
         
     except web.HTTPException:
