@@ -74,16 +74,12 @@ python server_scraping.py -i 127.0.0.1 -p 8000
 - ✅ **Etapa 9**: Manejo de errores y robustez
 - ✅ **Etapa 10**: Testing y documentación final
 - ✅ **Etapa 11 (Bonus)**: Sistema de tareas asíncronas con task IDs
-- 🎉 **PROYECTO COMPLETADO + BONUS TRACK** (110%)
+
 
 ## 👤 Autor
 
 - **Agustín Benavídez** ([@abenavidezUM](https://github.com/abenavidezUM))
 - **Legajo:** 62344
-
-## 📅 Fecha de Entrega
-
-14 de Noviembre de 2025
 
 ---
 
