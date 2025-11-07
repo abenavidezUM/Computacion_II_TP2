@@ -278,7 +278,6 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                 
                 # Importar módulo de procesamiento de imágenes
                 from processor.image_processor import process_page_images
-                import asyncio
                 
                 # Obtener parámetros opcionales
                 max_images = task.get('max_images', 5)
@@ -286,21 +285,14 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                 format_out = task.get('format', 'JPEG')
                 quality = task.get('quality', 85)
                 
-                # Procesar imágenes (requiere asyncio)
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    thumbnails = loop.run_until_complete(
-                        process_page_images(
-                            image_urls,
-                            max_images=max_images,
-                            thumbnail_size=thumbnail_size,
-                            format=format_out,
-                            quality=quality
-                        )
-                    )
-                finally:
-                    loop.close()
+                # Procesar imágenes de forma síncrona
+                thumbnails = process_page_images(
+                    image_urls,
+                    max_images=max_images,
+                    thumbnail_size=thumbnail_size,
+                    format=format_out,
+                    quality=quality
+                )
                 
                 if thumbnails:
                     return {

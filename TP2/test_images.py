@@ -20,9 +20,9 @@ async def test_thumbnails_basic():
     
     # URLs de imágenes de ejemplo (públicas y accesibles)
     image_urls = [
-        'https://via.placeholder.com/800x600.jpg',
-        'https://via.placeholder.com/600x800.png',
-        'https://via.placeholder.com/500x500.jpg'
+        'https://httpbin.org/image/jpeg',
+        'https://httpbin.org/image/png',
+        'https://httpbin.org/image/webp'
     ]
     
     task = {
@@ -100,7 +100,7 @@ async def test_thumbnails_different_sizes():
     print("=" * 70)
     
     image_urls = [
-        'https://via.placeholder.com/1920x1080.jpg'
+        'https://httpbin.org/image/jpeg'
     ]
     
     sizes = [
@@ -157,7 +157,7 @@ async def test_thumbnails_different_formats():
     print("=" * 70)
     
     image_urls = [
-        'https://via.placeholder.com/800x600.jpg'
+        'https://httpbin.org/image/png'
     ]
     
     formats = ['JPEG', 'PNG', 'WEBP']

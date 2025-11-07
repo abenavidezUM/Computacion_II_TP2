@@ -4,8 +4,7 @@ Descarga imágenes, genera thumbnails, redimensiona y optimiza.
 """
 
 from PIL import Image
-import aiohttp
-import asyncio
+import requests
 import base64
 import logging
 from typing import List, Optional, Tuple, Dict
@@ -20,9 +19,9 @@ MAX_IMAGE_SIZE_MB = 10
 DOWNLOAD_TIMEOUT = 30
 
 
-async def download_image(url: str, timeout: int = DOWNLOAD_TIMEOUT) -> Optional[bytes]:
+def download_image(url: str, timeout: int = DOWNLOAD_TIMEOUT) -> Optional[bytes]:
     """
-    Descarga una imagen desde una URL.
+    Descarga una imagen desde una URL de forma síncrona.
     
     Args:
         url: URL de la imagen
@@ -34,35 +33,39 @@ async def download_image(url: str, timeout: int = DOWNLOAD_TIMEOUT) -> Optional[
     try:
         logger.debug(f"Descargando imagen: {url}")
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
-                if response.status == 200:
-                    content_type = response.headers.get('content-type', '')
-                    
-                    # Verificar que es una imagen
-                    if not content_type.startswith('image/'):
-                        logger.warning(f"URL no es una imagen: {url} (tipo: {content_type})")
-                        return None
-                    
-                    # Verificar tamaño
-                    content_length = response.headers.get('content-length')
-                    if content_length:
-                        size_mb = int(content_length) / (1024 * 1024)
-                        if size_mb > MAX_IMAGE_SIZE_MB:
-                            logger.warning(f"Imagen demasiado grande: {size_mb:.2f}MB > {MAX_IMAGE_SIZE_MB}MB")
-                            return None
-                    
-                    image_data = await response.read()
-                    logger.debug(f"Imagen descargada: {len(image_data)} bytes")
-                    return image_data
-                else:
-                    logger.warning(f"Error descargando imagen {url}: HTTP {response.status}")
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(url, timeout=timeout, headers=headers, stream=True)
+        
+        if response.status_code == 200:
+            content_type = response.headers.get('content-type', '')
+            
+            # Verificar que es una imagen
+            if not content_type.startswith('image/'):
+                logger.warning(f"URL no es una imagen: {url} (tipo: {content_type})")
+                return None
+            
+            # Verificar tamaño
+            content_length = response.headers.get('content-length')
+            if content_length:
+                size_mb = int(content_length) / (1024 * 1024)
+                if size_mb > MAX_IMAGE_SIZE_MB:
+                    logger.warning(f"Imagen demasiado grande: {size_mb:.2f}MB > {MAX_IMAGE_SIZE_MB}MB")
                     return None
-                    
-    except asyncio.TimeoutError:
+            
+            image_data = response.content
+            logger.debug(f"Imagen descargada: {len(image_data)} bytes")
+            return image_data
+        else:
+            logger.warning(f"Error descargando imagen {url}: HTTP {response.status_code}")
+            return None
+                
+    except requests.Timeout:
         logger.warning(f"Timeout descargando imagen: {url}")
         return None
-    except aiohttp.ClientError as e:
+    except requests.RequestException as e:
         logger.warning(f"Error de red descargando {url}: {e}")
         return None
     except Exception as e:
@@ -326,11 +329,11 @@ def get_image_info(image_data: bytes) -> Optional[Dict]:
         return None
 
 
-async def process_page_images(image_urls: List[str], max_images: int = 5,
-                               thumbnail_size: Tuple[int, int] = DEFAULT_THUMBNAIL_SIZE,
-                               format: str = 'JPEG', quality: int = DEFAULT_QUALITY) -> List[Dict]:
+def process_page_images(image_urls: List[str], max_images: int = 5,
+                        thumbnail_size: Tuple[int, int] = DEFAULT_THUMBNAIL_SIZE,
+                        format: str = 'JPEG', quality: int = DEFAULT_QUALITY) -> List[Dict]:
     """
-    Procesa múltiples imágenes de una página.
+    Procesa múltiples imágenes de una página de forma síncrona.
     
     Args:
         image_urls: Lista de URLs de imágenes
@@ -352,7 +355,7 @@ async def process_page_images(image_urls: List[str], max_images: int = 5,
         logger.info(f"Procesando imagen {processed + 1}/{max_images}: {url}")
         
         # Descargar imagen
-        image_data = await download_image(url)
+        image_data = download_image(url)
         
         if image_data is None:
             logger.warning(f"No se pudo descargar: {url}")
