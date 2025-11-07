@@ -70,7 +70,8 @@ python server_scraping.py -i 127.0.0.1 -p 8000
 - ✅ **Etapa 5**: Integración completa A↔B
 - ✅ **Etapa 6**: Screenshots con Selenium WebDriver
 - ✅ **Etapa 7**: Análisis de rendimiento web
-- 🔄 **Etapa 8**: Procesamiento de imágenes y thumbnails (en progreso)
+- ✅ **Etapa 8**: Procesamiento de imágenes y thumbnails
+- 🔄 **Etapa 9-10**: Robustez, testing y documentación (en progreso)
 
 ## 👤 Autor
 

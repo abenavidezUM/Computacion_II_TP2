@@ -279,8 +279,17 @@ pytest tests/test_processor.py -v
 - Performance Insights y recomendaciones
 - Testing directo verificado
 
-**Próxima etapa:**
-- Etapa 8: Procesamiento de imágenes y thumbnails
+**Etapa 8 - Completada ✓**
+- Procesamiento de imágenes con Pillow (PIL)
+- Generación de thumbnails configurables
+- Redimensionamiento y optimización de imágenes
+- Conversión entre formatos (JPEG, PNG, WEBP)
+- Descarga asíncrona de imágenes
+- Procesamiento batch de múltiples imágenes
+
+**Próximas etapas:**
+- Etapa 9: Manejo de errores y robustez
+- Etapa 10: Testing completo y documentación
 
 ### Contribuir
 

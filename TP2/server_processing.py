@@ -264,14 +264,62 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                     }
             
             elif task_type == 'thumbnails':
-                # Placeholder para thumbnails (se implementará en Etapa 8)
-                logger.info(f"Thumbnail generation request para: {len(task.get('image_urls', []))} imágenes")
-                return {
-                    'status': 'success',
-                    'task_type': 'thumbnails',
-                    'message': 'Thumbnail generation not yet implemented',
-                    'thumbnails': []
-                }
+                # Generación de thumbnails real
+                image_urls = task.get('image_urls', [])
+                
+                if not image_urls:
+                    return {
+                        'status': 'error',
+                        'task_type': 'thumbnails',
+                        'message': 'image_urls is required for thumbnails task'
+                    }
+                
+                logger.info(f"Thumbnail generation request para: {len(image_urls)} imágenes")
+                
+                # Importar módulo de procesamiento de imágenes
+                from processor.image_processor import process_page_images
+                import asyncio
+                
+                # Obtener parámetros opcionales
+                max_images = task.get('max_images', 5)
+                thumbnail_size = tuple(task.get('thumbnail_size', [150, 150]))
+                format_out = task.get('format', 'JPEG')
+                quality = task.get('quality', 85)
+                
+                # Procesar imágenes (requiere asyncio)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    thumbnails = loop.run_until_complete(
+                        process_page_images(
+                            image_urls,
+                            max_images=max_images,
+                            thumbnail_size=thumbnail_size,
+                            format=format_out,
+                            quality=quality
+                        )
+                    )
+                finally:
+                    loop.close()
+                
+                if thumbnails:
+                    return {
+                        'status': 'success',
+                        'task_type': 'thumbnails',
+                        'message': f'Generated {len(thumbnails)} thumbnails',
+                        'thumbnails': thumbnails,
+                        'total_processed': len(thumbnails),
+                        'total_requested': len(image_urls)
+                    }
+                else:
+                    return {
+                        'status': 'warning',
+                        'task_type': 'thumbnails',
+                        'message': 'No thumbnails could be generated',
+                        'thumbnails': [],
+                        'total_processed': 0,
+                        'total_requested': len(image_urls)
+                    }
             
             else:
                 logger.warning(f"Tipo de tarea desconocido: {task_type}")
