@@ -1,0 +1,28 @@
+# Archivos de planificación y consigna (no pushear al repositorio)
+consigna.txt
+ROADMAP.md
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Logs
+*.log
+
+# Screenshots temporales
+*.png
+*.jpg
+
