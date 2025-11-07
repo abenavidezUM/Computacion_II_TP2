@@ -58,11 +58,30 @@ def parse_arguments():
         help='Archivo de salida para guardar el resultado JSON'
     )
     
+    parser.add_argument(
+        '--process',
+        action='store_true',
+        help='Solicitar procesamiento adicional (screenshots, performance, thumbnails)'
+    )
+    
+    parser.add_argument(
+        '--pretty',
+        action='store_true',
+        help='Mostrar output formateado y legible'
+    )
+    
+    parser.add_argument(
+        '--verbose',
+        '-v',
+        action='store_true',
+        help='Mostrar información detallada'
+    )
+    
     return parser.parse_args()
 
 
 async def scrape_url(url: str, server_host: str, server_port: int,
-                     timeout: int) -> Optional[dict]:
+                     timeout: int, process: bool = False, verbose: bool = False) -> Optional[dict]:
     """
     Realiza un request de scraping al servidor.
     
@@ -71,6 +90,8 @@ async def scrape_url(url: str, server_host: str, server_port: int,
         server_host: Host del servidor
         server_port: Puerto del servidor
         timeout: Timeout en segundos
+        process: Si True, solicita procesamiento adicional
+        verbose: Si True, muestra información detallada
         
     Returns:
         Diccionario con la respuesta del servidor o None si hay error
@@ -80,11 +101,17 @@ async def scrape_url(url: str, server_host: str, server_port: int,
     try:
         async with aiohttp.ClientSession() as session:
             params = {'url': url}
+            if process:
+                params['process'] = 'true'
+            
             timeout_config = aiohttp.ClientTimeout(total=timeout)
             
-            print(f"Enviando request a {server_url}")
-            print(f"URL objetivo: {url}")
-            print("Esperando respuesta...\n")
+            if verbose:
+                print(f"📡 Enviando request a {server_url}")
+                print(f"🌐 URL objetivo: {url}")
+                if process:
+                    print(f"⚙️  Procesamiento adicional: ACTIVADO")
+                print("⏳ Esperando respuesta...\n")
             
             async with session.get(server_url, params=params,
                                   timeout=timeout_config) as response:
@@ -94,7 +121,7 @@ async def scrape_url(url: str, server_host: str, server_port: int,
                     return data
                 else:
                     error_text = await response.text()
-                    print(f"Error del servidor (status {response.status}): {error_text}")
+                    print(f"❌ Error del servidor (status {response.status}): {error_text}")
                     return None
                     
     except aiohttp.ClientConnectorError:
@@ -109,20 +136,69 @@ async def scrape_url(url: str, server_host: str, server_port: int,
         return None
 
 
-def print_results(data: dict):
+def print_results(data: dict, pretty: bool = False):
     """
     Imprime los resultados de forma formateada.
     
     Args:
         data: Diccionario con los datos de respuesta
+        pretty: Si True, muestra formato legible en lugar de JSON
     """
-    print("=" * 70)
-    print("RESULTADOS DEL SCRAPING")
+    if not pretty:
+        print("=" * 70)
+        print("RESULTADOS DEL SCRAPING")
+        print("=" * 70)
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        print("=" * 70)
+        return
+    
+    # Formato legible
+    print("\n" + "=" * 70)
+    print("📊 RESULTADOS DEL SCRAPING")
     print("=" * 70)
     
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+    # Estado
+    status = data.get('status', 'unknown')
+    print(f"\n✅ Estado: {status.upper()}")
     
-    print("=" * 70)
+    # Datos de scraping
+    scraping_data = data.get('scraping_data', {})
+    if scraping_data:
+        print(f"\n🔍 DATOS DE SCRAPING:")
+        print(f"  📄 Título: {scraping_data.get('title', 'N/A')}")
+        print(f"  🔗 Enlaces: {scraping_data.get('links_count', 0)}")
+        print(f"  🖼️  Imágenes: {scraping_data.get('images_count', 0)}")
+        
+        structure = scraping_data.get('structure', {})
+        if structure:
+            print(f"  📑 Estructura:")
+            for tag, count in sorted(structure.items()):
+                if count > 0:
+                    print(f"     {tag}: {count}")
+    
+    # Datos de procesamiento
+    processing_data = data.get('processing_data', {})
+    if processing_data:
+        print(f"\n⚙️  DATOS DE PROCESAMIENTO:")
+        
+        screenshot = processing_data.get('screenshot', {})
+        if screenshot and screenshot.get('status') == 'success':
+            print(f"  📸 Screenshot: Capturado")
+        
+        performance = processing_data.get('performance', {})
+        if performance and performance.get('status') == 'success':
+            metrics = performance.get('metrics', {})
+            print(f"  ⚡ Performance:")
+            print(f"     Tiempo de carga: {metrics.get('load_time_ms', 0)}ms")
+            resources = metrics.get('resources', {})
+            print(f"     Requests: {resources.get('total_requests', 0)}")
+            print(f"     Tamaño: {resources.get('total_size_kb', 0)} KB")
+        
+        thumbnails = processing_data.get('thumbnails', [])
+        if thumbnails:
+            print(f"  🖼️  Thumbnails: {len(thumbnails)} generados")
+    
+    print("\n" + "=" * 70 + "\n")
 
 
 def save_results(data: dict, output_file: str):
@@ -152,12 +228,14 @@ async def main():
         url=args.url,
         server_host=args.server_host,
         server_port=args.server_port,
-        timeout=args.timeout
+        timeout=args.timeout,
+        process=args.process,
+        verbose=args.verbose
     )
     
     if results:
         # Mostrar resultados
-        print_results(results)
+        print_results(results, pretty=args.pretty)
         
         # Guardar si se especificó archivo de salida
         if args.output:

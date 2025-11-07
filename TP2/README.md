@@ -111,10 +111,23 @@ python client.py --url https://example.com
 - `--server-port`: Puerto del servidor de scraping (default: 8000)
 - `--timeout`: Timeout en segundos (default: 60)
 - `--output`: Archivo para guardar el resultado JSON
+- `--process`: Solicitar procesamiento adicional (screenshots, performance, thumbnails)
+- `--pretty`: Mostrar formato legible en lugar de JSON
+- `--verbose, -v`: Información detallada
 
 **Ejemplo con todas las opciones:**
 ```bash
-python client.py --url https://github.com --server-host 127.0.0.1 --server-port 8000 --timeout 120 --output result.json
+# Simple
+python client.py --url https://example.com
+
+# Con formato legible
+python client.py --url https://example.com --pretty
+
+# Con procesamiento completo
+python client.py --url https://example.com --process --pretty --verbose
+
+# Guardar en archivo
+python client.py --url https://github.com --timeout 120 --output result.json
 ```
 
 ### Soporte para IPv6
@@ -213,6 +226,16 @@ TP2/
 
 ## Testing
 
+El proyecto incluye tests unitarios completos para validar todas las funcionalidades críticas.
+
+### Ejecutar Tests
+
+Instalar pytest (si no está instalado):
+
+```bash
+pip install pytest
+```
+
 Ejecutar todos los tests:
 
 ```bash
@@ -222,8 +245,48 @@ pytest tests/ -v
 Ejecutar tests específicos:
 
 ```bash
+# Tests de scraping (HTML parser, metadata extractor)
 pytest tests/test_scraper.py -v
+
+# Tests de procesamiento (image processor, validators, limits)
 pytest tests/test_processor.py -v
+```
+
+### Cobertura de Tests
+
+**test_scraper.py** (18 tests):
+- Extracción de título y fallbacks
+- Extracción y conversión de enlaces
+- Extracción de imágenes
+- Análisis de estructura (H1-H6)
+- Extracción de meta tags (basic, Open Graph, Twitter)
+- Casos límite (HTML malformado, vacío, sin atributos)
+
+**test_processor.py** (30+ tests):
+- Generación de thumbnails con aspect ratio
+- Redimensionamiento de imágenes
+- Optimización y conversión de formatos
+- Extracción de información de imágenes
+- Validadores (URL, puertos, workers, timeouts, dimensiones, calidad, formatos)
+- Límites de seguridad (safe timeouts, quality, dimensions, max images)
+- Casos límite (datos inválidos, valores fuera de rango)
+
+### Tests de Integración
+
+Scripts de prueba manuales incluidos:
+
+```bash
+# Test de comunicación entre servidores
+python test_communication.py
+
+# Test de integración completo
+python test_integration.py
+
+# Test de performance
+python test_performance.py
+
+# Test de imágenes
+python test_images.py
 ```
 
 ## Desarrollo
@@ -296,8 +359,30 @@ pytest tests/test_processor.py -v
 - Manejo de errores estructurado y consistente
 - Degradación graciosa ante fallos parciales
 
-**Próxima etapa:**
-- Etapa 10: Testing exhaustivo y documentación final
+**Etapa 10 - Completada ✓**
+- Cliente mejorado con opciones --process, --pretty, --verbose
+- Formateo legible de resultados con emojis
+- tests/test_scraper.py con 18 tests unitarios
+- tests/test_processor.py con 30+ tests unitarios
+- Cobertura completa de funcionalidades críticas
+- Documentación exhaustiva con ejemplos
+- Todos los requisitos del TP cumplidos
+
+**🎉 PROYECTO COMPLETADO - 100% de los requisitos implementados**
+
+**Funcionalidades finales:**
+- ✅ Servidor asíncrono con asyncio + aiohttp
+- ✅ Servidor de procesamiento con multiprocessing
+- ✅ Protocolo de comunicación inter-servidor personalizado
+- ✅ Web scraping completo (HTML, meta tags, estructura)
+- ✅ Screenshots reales con Selenium
+- ✅ Análisis de rendimiento web (timing, resources, paint)
+- ✅ Procesamiento de imágenes (thumbnails, resize, optimize)
+- ✅ Validación robusta de inputs
+- ✅ Límites de recursos y seguridad
+- ✅ Manejo de errores estructurado
+- ✅ 48+ tests unitarios
+- ✅ Documentación completa
 
 ### Contribuir
 
