@@ -11,6 +11,9 @@ import sys
 from ipaddress import ip_address, AddressValueError
 from aiohttp import web
 
+# Importar gestor de tareas
+from common.task_manager import TaskManager, TaskStatus
+
 # Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
@@ -402,12 +405,20 @@ def create_app() -> web.Application:
         error_middleware
     ])
     
-    # Configurar rutas
+    # Configurar rutas básicas
     app.router.add_get('/scrape', handle_scrape)
     app.router.add_post('/scrape', handle_scrape)
     app.router.add_get('/health', handle_health)
     
+    # Configurar rutas de tareas asíncronas (Bonus Track - Etapa 11)
+    app.router.add_get('/scrape/async', handle_scrape_async)
+    app.router.add_post('/scrape/async', handle_scrape_async)
+    app.router.add_get('/status/{task_id}', handle_status)
+    app.router.add_get('/result/{task_id}', handle_result)
+    app.router.add_get('/stats', handle_stats)
+    
     logger.info("Aplicación aiohttp creada con middlewares configurados")
+    logger.info("Rutas de tareas asíncronas habilitadas (Bonus Track)")
     
     return app
 
@@ -433,6 +444,14 @@ async def start_server(host: str, port: int, workers: int,
         'processor_port': processor_port
     }
     
+    # Inicializar TaskManager y cola de tareas (Bonus Track - Etapa 11)
+    app['task_manager'] = TaskManager(max_tasks=1000)
+    app['task_queue'] = asyncio.Queue()
+    
+    # Iniciar task worker en background
+    app['worker_task'] = asyncio.create_task(task_worker(app))
+    logger.info("Task worker iniciado para procesamiento en background")
+    
     runner = web.AppRunner(app)
     await runner.setup()
     
@@ -449,6 +468,10 @@ async def start_server(host: str, port: int, workers: int,
     logger.info("Endpoints disponibles:")
     logger.info(f"  - GET/POST /scrape?url=<URL>")
     logger.info(f"  - GET /health")
+    logger.info(f"  - POST /scrape/async?url=<URL> (modo async con task_id)")
+    logger.info(f"  - GET /status/{{task_id}}")
+    logger.info(f"  - GET /result/{{task_id}}")
+    logger.info(f"  - GET /stats")
     
     # Mantener el servidor corriendo
     try:
@@ -456,7 +479,295 @@ async def start_server(host: str, port: int, workers: int,
     except KeyboardInterrupt:
         logger.info("Deteniendo servidor...")
     finally:
+        # Detener worker task
+        if 'worker_task' in app:
+            app['worker_task'].cancel()
+            try:
+                await app['worker_task']
+            except asyncio.CancelledError:
+                pass
         await runner.cleanup()
+
+
+async def handle_scrape_async(request: web.Request) -> web.Response:
+    """
+    Handler para scraping asíncrono con task_id.
+    Retorna inmediatamente un task_id sin esperar.
+    """
+    client_ip = request.remote
+    
+    try:
+        # Obtener URL
+        if request.method == 'GET':
+            url = request.query.get('url')
+        else:
+            try:
+                data = await request.json()
+                url = data.get('url')
+            except Exception:
+                url = request.query.get('url')
+        
+        if not url:
+            return web.json_response(
+                {'status': 'error', 'message': 'URL parameter is required'},
+                status=400
+            )
+        
+        # Validar URL
+        from common.validators import validate_url
+        is_valid, error_msg = validate_url(url)
+        if not is_valid:
+            return web.json_response(
+                {'status': 'error', 'message': 'Invalid URL', 'details': error_msg},
+                status=400
+            )
+        
+        # Obtener parámetros
+        process = request.query.get('process', 'false').lower() == 'true'
+        
+        # Crear tarea
+        task_manager = request.app['task_manager']
+        task_id = task_manager.create_task(url, process)
+        
+        logger.info(f"Tarea asíncrona creada: {task_id} para {url} desde {client_ip}")
+        
+        # Agregar a la cola de procesamiento
+        await request.app['task_queue'].put(task_id)
+        
+        return web.json_response({
+            'status': 'success',
+            'task_id': task_id,
+            'message': 'Task created successfully',
+            'url': url,
+            'process': process,
+            'endpoints': {
+                'status': f'/status/{task_id}',
+                'result': f'/result/{task_id}'
+            }
+        }, status=202)
+        
+    except Exception as e:
+        logger.error(f"Error en scrape async: {e}", exc_info=True)
+        return web.json_response(
+            {'status': 'error', 'message': 'Internal server error'},
+            status=500
+        )
+
+
+async def handle_status(request: web.Request) -> web.Response:
+    """
+    Handler para consultar el estado de una tarea.
+    """
+    task_id = request.match_info['task_id']
+    task_manager = request.app['task_manager']
+    
+    status_info = task_manager.get_status(task_id)
+    
+    if not status_info:
+        return web.json_response(
+            {'status': 'error', 'message': 'Task not found'},
+            status=404
+        )
+    
+    return web.json_response({
+        'status': 'success',
+        'task': status_info
+    })
+
+
+async def handle_result(request: web.Request) -> web.Response:
+    """
+    Handler para obtener el resultado de una tarea.
+    """
+    task_id = request.match_info['task_id']
+    task_manager = request.app['task_manager']
+    
+    task = task_manager.get_task(task_id)
+    
+    if not task:
+        return web.json_response(
+            {'status': 'error', 'message': 'Task not found'},
+            status=404
+        )
+    
+    if task.status == TaskStatus.PENDING:
+        return web.json_response(
+            {'status': 'pending', 'message': 'Task is pending'},
+            status=202
+        )
+    
+    if task.status == TaskStatus.PROCESSING:
+        return web.json_response(
+            {'status': 'processing', 'message': 'Task is being processed'},
+            status=202
+        )
+    
+    if task.status == TaskStatus.FAILED:
+        return web.json_response(
+            {'status': 'failed', 'message': 'Task failed', 'error': task.error},
+            status=500
+        )
+    
+    # COMPLETED
+    result = task_manager.get_result(task_id)
+    if result:
+        return web.json_response(result)
+    else:
+        return web.json_response(
+            {'status': 'error', 'message': 'Result not available'},
+            status=500
+        )
+
+
+async def handle_stats(request: web.Request) -> web.Response:
+    """
+    Handler para obtener estadísticas del servidor.
+    """
+    task_manager = request.app['task_manager']
+    stats = task_manager.get_stats()
+    
+    return web.json_response({
+        'status': 'success',
+        'stats': stats
+    })
+
+
+async def task_worker(app: web.Application):
+    """
+    Worker que procesa tareas de la cola en background.
+    """
+    logger.info("Task worker iniciado")
+    task_queue = app['task_queue']
+    task_manager = app['task_manager']
+    
+    while True:
+        try:
+            # Obtener tarea de la cola
+            task_id = await task_queue.get()
+            
+            task = task_manager.get_task(task_id)
+            if not task:
+                logger.warning(f"Tarea {task_id} no encontrada")
+                continue
+            
+            logger.info(f"Procesando tarea {task_id}: {task.url}")
+            task_manager.update_status(task_id, TaskStatus.PROCESSING)
+            
+            try:
+                # Importar funciones de scraping
+                from datetime import datetime
+                from scraper.async_http import fetch_url
+                from scraper.html_parser import (
+                    extract_title, extract_links, extract_image_urls,
+                    count_images, analyze_structure
+                )
+                from scraper.metadata_extractor import (
+                    extract_meta_tags, extract_open_graph_tags, extract_twitter_tags
+                )
+                from bs4 import BeautifulSoup
+                
+                # Realizar scraping
+                html_content = await fetch_url(task.url, timeout=30)
+                
+                if not html_content:
+                    raise Exception("Failed to fetch URL")
+                
+                soup = BeautifulSoup(html_content, 'lxml')
+                
+                # Extraer datos
+                scraping_data = {
+                    'title': extract_title(soup),
+                    'links': extract_links(soup, task.url),
+                    'links_count': len(extract_links(soup, task.url)),
+                    'images': extract_image_urls(soup, task.url),
+                    'images_count': count_images(soup),
+                    'structure': analyze_structure(soup),
+                    'meta_tags': extract_meta_tags(soup),
+                    'open_graph': extract_open_graph_tags(soup),
+                    'twitter': extract_twitter_tags(soup)
+                }
+                
+                result = {
+                    'url': task.url,
+                    'timestamp': datetime.now().isoformat(),
+                    'status': 'success',
+                    'scraping_data': scraping_data
+                }
+                
+                # Procesamiento adicional si se solicita
+                if task.process:
+                    from common.protocol import send_to_processor
+                    processing_data = {}
+                    
+                    # Screenshot
+                    try:
+                        screenshot_task = {'task_type': 'screenshot', 'url': task.url}
+                        screenshot_response = await send_to_processor(
+                            app['config']['processor_host'],
+                            app['config']['processor_port'],
+                            screenshot_task,
+                            timeout=30
+                        )
+                        if screenshot_response:
+                            processing_data['screenshot'] = screenshot_response
+                    except Exception as e:
+                        logger.error(f"Error en screenshot: {e}")
+                        processing_data['screenshot'] = {'status': 'error', 'message': str(e)}
+                    
+                    # Performance
+                    try:
+                        performance_task = {'task_type': 'performance', 'url': task.url}
+                        performance_response = await send_to_processor(
+                            app['config']['processor_host'],
+                            app['config']['processor_port'],
+                            performance_task,
+                            timeout=60
+                        )
+                        if performance_response:
+                            processing_data['performance'] = performance_response
+                    except Exception as e:
+                        logger.error(f"Error en performance: {e}")
+                        processing_data['performance'] = {'status': 'error', 'message': str(e)}
+                    
+                    # Thumbnails
+                    try:
+                        image_urls = scraping_data['images'][:5]
+                        if image_urls:
+                            thumbnails_task = {
+                                'task_type': 'thumbnails',
+                                'image_urls': image_urls,
+                                'max_images': 5
+                            }
+                            thumbnails_response = await send_to_processor(
+                                app['config']['processor_host'],
+                                app['config']['processor_port'],
+                                thumbnails_task,
+                                timeout=60
+                            )
+                            if thumbnails_response:
+                                processing_data['thumbnails'] = thumbnails_response.get('thumbnails', [])
+                    except Exception as e:
+                        logger.error(f"Error en thumbnails: {e}")
+                        processing_data['thumbnails'] = []
+                    
+                    result['processing_data'] = processing_data
+                
+                # Guardar resultado
+                task_manager.set_result(task_id, result)
+                logger.info(f"Tarea {task_id} completada exitosamente")
+                
+            except Exception as e:
+                logger.error(f"Error procesando tarea {task_id}: {e}", exc_info=True)
+                task_manager.set_error(task_id, str(e))
+            
+            finally:
+                task_queue.task_done()
+                
+        except asyncio.CancelledError:
+            logger.info("Task worker detenido")
+            break
+        except Exception as e:
+            logger.error(f"Error en task worker: {e}", exc_info=True)
 
 
 def main():

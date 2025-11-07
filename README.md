@@ -73,7 +73,8 @@ python server_scraping.py -i 127.0.0.1 -p 8000
 - ✅ **Etapa 8**: Procesamiento de imágenes y thumbnails
 - ✅ **Etapa 9**: Manejo de errores y robustez
 - ✅ **Etapa 10**: Testing y documentación final
-- 🎉 **PROYECTO COMPLETADO** (100%)
+- ✅ **Etapa 11 (Bonus)**: Sistema de tareas asíncronas con task IDs
+- 🎉 **PROYECTO COMPLETADO + BONUS TRACK** (110%)
 
 ## 👤 Autor
 

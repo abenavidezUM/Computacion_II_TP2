@@ -144,9 +144,9 @@ python client.py --url https://example.com --server-host ::1
 
 ## Endpoints del Servidor de Scraping
 
-### GET/POST /scrape
+### GET/POST /scrape (Modo Síncrono)
 
-Realiza scraping de una URL.
+Realiza scraping de una URL y espera el resultado.
 
 **Parámetros:**
 - `url` (query parameter): URL a scrapear
@@ -194,6 +194,167 @@ Verifica el estado del servidor.
 ```bash
 curl "http://localhost:8000/health"
 ```
+
+---
+
+## 🎁 Bonus Track - Sistema de Tareas Asíncronas (Etapa 11)
+
+El servidor incluye un sistema de tareas asíncronas que permite:
+- **Respuestas inmediatas** sin esperar a que termine el scraping
+- **Consulta de estado** en tiempo real
+- **Procesamiento en background** con workers asíncronos
+- **Múltiples tareas en paralelo** sin bloqueos
+
+### GET/POST /scrape/async
+
+Crea una tarea de scraping asíncrona y retorna inmediatamente un `task_id`.
+
+**Parámetros:**
+- `url` (query parameter): URL a scrapear
+- `process` (optional): Si "true", incluye procesamiento adicional
+
+**Respuesta (HTTP 202):**
+```json
+{
+  "status": "success",
+  "task_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Task created successfully",
+  "url": "https://example.com",
+  "process": false,
+  "endpoints": {
+    "status": "/status/550e8400-e29b-41d4-a716-446655440000",
+    "result": "/result/550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+**Ejemplo:**
+```bash
+# Crear tarea asíncrona
+curl -X POST "http://localhost:8000/scrape/async?url=https://example.com"
+
+# Con procesamiento completo
+curl -X POST "http://localhost:8000/scrape/async?url=https://example.com&process=true"
+```
+
+### GET /status/{task_id}
+
+Consulta el estado de una tarea.
+
+**Estados posibles:**
+- `pending`: Tarea en cola, esperando procesamiento
+- `processing`: Tarea siendo procesada actualmente
+- `completed`: Tarea completada exitosamente
+- `failed`: Tarea falló con error
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "task": {
+    "task_id": "550e8400-e29b-41d4-a716-446655440000",
+    "url": "https://example.com",
+    "status": "processing",
+    "created_at": "2025-11-07T17:30:00.000000",
+    "started_at": "2025-11-07T17:30:01.000000",
+    "completed_at": null,
+    "has_result": false,
+    "error": null
+  }
+}
+```
+
+**Ejemplo:**
+```bash
+curl "http://localhost:8000/status/550e8400-e29b-41d4-a716-446655440000"
+```
+
+### GET /result/{task_id}
+
+Obtiene el resultado de una tarea completada.
+
+**Respuesta si está pending/processing (HTTP 202):**
+```json
+{
+  "status": "processing",
+  "message": "Task is being processed"
+}
+```
+
+**Respuesta si está completed (HTTP 200):**
+```json
+{
+  "url": "https://example.com",
+  "timestamp": "2025-11-07T17:30:05.000000",
+  "status": "success",
+  "scraping_data": {
+    "title": "Example Domain",
+    "links_count": 1,
+    "images_count": 0,
+    ...
+  }
+}
+```
+
+**Ejemplo:**
+```bash
+curl "http://localhost:8000/result/550e8400-e29b-41d4-a716-446655440000"
+```
+
+### GET /stats
+
+Obtiene estadísticas del servidor de tareas.
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "stats": {
+    "total_tasks": 15,
+    "pending": 2,
+    "processing": 1,
+    "completed": 10,
+    "failed": 2,
+    "max_tasks": 1000
+  }
+}
+```
+
+**Ejemplo:**
+```bash
+curl "http://localhost:8000/stats"
+```
+
+### Flujo de Trabajo con Tareas Asíncronas
+
+```bash
+# 1. Crear tarea (respuesta inmediata)
+TASK_ID=$(curl -s -X POST "http://localhost:8000/scrape/async?url=https://example.com" | jq -r '.task_id')
+
+# 2. Consultar estado (puede hacer polling)
+curl "http://localhost:8000/status/$TASK_ID"
+
+# 3. Esperar y obtener resultado cuando esté listo
+curl "http://localhost:8000/result/$TASK_ID"
+```
+
+### Test del Sistema de Tareas
+
+Ejecutar el script de prueba incluido:
+
+```bash
+python test_async_tasks.py
+```
+
+Este script prueba:
+- Creación de tareas asíncronas
+- Consulta de estado en diferentes momentos
+- Obtención de resultados
+- Creación de múltiples tareas en paralelo
+- Estadísticas del servidor
+- Manejo de errores (tareas inexistentes)
+
+---
 
 ## Estructura del Proyecto
 
@@ -368,7 +529,21 @@ python test_images.py
 - Documentación exhaustiva con ejemplos
 - Todos los requisitos del TP cumplidos
 
-**🎉 PROYECTO COMPLETADO - 100% de los requisitos implementados**
+**🎉 PROYECTO COMPLETADO - 100% de los requisitos + Bonus Track**
+
+**Etapa 11 - Completada ✓ (Bonus Track)**
+- Sistema de cola con task IDs (UUIDs únicos)
+- Respuestas inmediatas sin esperar (HTTP 202)
+- Endpoint POST /scrape/async para crear tareas
+- Endpoint GET /status/{task_id} para consultar estado
+- Endpoint GET /result/{task_id} para obtener resultado
+- Endpoint GET /stats para estadísticas del servidor
+- Estados: pending, processing, completed, failed
+- TaskManager con hasta 1000 tareas en memoria
+- Worker asíncrono procesando en background
+- Script test_async_tasks.py con 9 tests
+- Cleanup automático de tareas antiguas (FIFO)
+- Timestamps completos (creación, inicio, finalización)
 
 **Funcionalidades finales:**
 - ✅ Servidor asíncrono con asyncio + aiohttp
