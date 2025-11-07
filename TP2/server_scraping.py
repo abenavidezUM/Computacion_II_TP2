@@ -656,7 +656,7 @@ async def task_worker(app: web.Application):
             try:
                 # Importar funciones de scraping
                 from datetime import datetime
-                from scraper.async_http import fetch_url
+                from scraper.async_http import fetch_html
                 from scraper.html_parser import (
                     extract_title, extract_links, extract_image_urls,
                     count_images, analyze_structure
@@ -667,7 +667,7 @@ async def task_worker(app: web.Application):
                 from bs4 import BeautifulSoup
                 
                 # Realizar scraping
-                html_content = await fetch_url(task.url, timeout=30)
+                html_content = await fetch_html(task.url, timeout=30)
                 
                 if not html_content:
                     raise Exception("Failed to fetch URL")
