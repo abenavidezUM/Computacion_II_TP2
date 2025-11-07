@@ -271,8 +271,15 @@ pytest tests/test_processor.py -v
 - Formato PNG en base64
 - 3 tests exitosos (example.com, github.com, python.org)
 
-**Próximas etapas:**
-- Etapa 7: Análisis de rendimiento web
+**Etapa 7 - Completada ✓**
+- Análisis de rendimiento con Performance API
+- Navigation Timing: DNS, TCP, Request/Response
+- Paint Metrics: First Paint, First Contentful Paint
+- DOM Metrics: Interactive, Content Loaded, Complete
+- Performance Insights y recomendaciones
+- Testing directo verificado
+
+**Próxima etapa:**
 - Etapa 8: Procesamiento de imágenes y thumbnails
 
 ### Contribuir

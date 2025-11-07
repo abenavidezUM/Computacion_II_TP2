@@ -225,14 +225,43 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                     }
             
             elif task_type == 'performance':
-                # Placeholder para análisis de rendimiento (se implementará en Etapa 7)
-                logger.info(f"Performance analysis request para: {task.get('url', 'unknown')}")
-                return {
-                    'status': 'success',
-                    'task_type': 'performance',
-                    'message': 'Performance analysis not yet implemented',
-                    'metrics': {}
-                }
+                # Análisis de rendimiento real
+                url = task.get('url')
+                if not url:
+                    return {
+                        'status': 'error',
+                        'task_type': 'performance',
+                        'message': 'URL is required for performance task'
+                    }
+                
+                logger.info(f"Performance analysis request para: {url}")
+                
+                # Importar módulo de performance
+                from processor.performance import analyze_performance, get_performance_insights
+                
+                # Obtener timeout opcional
+                timeout = task.get('timeout', 30)
+                
+                # Analizar performance
+                metrics = analyze_performance(url, timeout=timeout)
+                
+                if metrics:
+                    # Generar insights
+                    insights = get_performance_insights(metrics)
+                    
+                    return {
+                        'status': 'success',
+                        'task_type': 'performance',
+                        'message': 'Performance analysis completed successfully',
+                        'metrics': metrics,
+                        'insights': insights
+                    }
+                else:
+                    return {
+                        'status': 'error',
+                        'task_type': 'performance',
+                        'message': 'Failed to analyze performance'
+                    }
             
             elif task_type == 'thumbnails':
                 # Placeholder para thumbnails (se implementará en Etapa 8)
