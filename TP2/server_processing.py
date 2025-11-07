@@ -174,14 +174,55 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                 }
             
             elif task_type == 'screenshot':
-                # Placeholder para screenshot (se implementará en Etapa 6)
-                logger.info(f"Screenshot request para: {task.get('url', 'unknown')}")
-                return {
-                    'status': 'success',
-                    'task_type': 'screenshot',
-                    'message': 'Screenshot functionality not yet implemented',
-                    'screenshot': None
-                }
+                # Generar screenshot real
+                url = task.get('url')
+                if not url:
+                    return {
+                        'status': 'error',
+                        'task_type': 'screenshot',
+                        'message': 'URL is required for screenshot task'
+                    }
+                
+                logger.info(f"Screenshot request para: {url}")
+                
+                # Importar módulo de screenshots
+                from processor.screenshot import generate_screenshot_with_options
+                
+                # Obtener parámetros opcionales
+                width = task.get('width', 1920)
+                height = task.get('height', 1080)
+                full_page = task.get('full_page', True)
+                timeout = task.get('timeout', 30)
+                
+                # Generar screenshot
+                screenshot_b64 = generate_screenshot_with_options(
+                    url, 
+                    width=width,
+                    height=height,
+                    full_page=full_page,
+                    timeout=timeout
+                )
+                
+                if screenshot_b64:
+                    return {
+                        'status': 'success',
+                        'task_type': 'screenshot',
+                        'message': f'Screenshot captured successfully',
+                        'screenshot': screenshot_b64,
+                        'format': 'png',
+                        'encoding': 'base64',
+                        'dimensions': {
+                            'width': width,
+                            'height': height
+                        },
+                        'full_page': full_page
+                    }
+                else:
+                    return {
+                        'status': 'error',
+                        'task_type': 'screenshot',
+                        'message': 'Failed to capture screenshot'
+                    }
             
             elif task_type == 'performance':
                 # Placeholder para análisis de rendimiento (se implementará en Etapa 7)

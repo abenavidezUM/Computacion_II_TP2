@@ -264,11 +264,16 @@ pytest tests/test_processor.py -v
 - Combinación de resultados en JSON unificado
 - Testing end-to-end con 3 tests exitosos
 
+**Etapa 6 - Completada ✓**
+- Screenshots reales con Selenium WebDriver
+- Captura full-page y viewport
+- Tamaños personalizables (desktop, mobile, etc.)
+- Formato PNG en base64
+- 3 tests exitosos (example.com, github.com, python.org)
+
 **Próximas etapas:**
-- Etapa 6-8: Funcionalidades de procesamiento
-  - Screenshots con Selenium
-  - Análisis de rendimiento
-  - Procesamiento de imágenes
+- Etapa 7: Análisis de rendimiento web
+- Etapa 8: Procesamiento de imágenes y thumbnails
 
 ### Contribuir
 

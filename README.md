@@ -68,7 +68,8 @@ python server_scraping.py -i 127.0.0.1 -p 8000
 - ✅ **Etapa 3**: Implementación de scraping con BeautifulSoup
 - ✅ **Etapa 4**: Servidor de procesamiento con multiprocessing
 - ✅ **Etapa 5**: Integración completa A↔B
-- 🔄 **Etapa 6-8**: Funcionalidades de procesamiento (en progreso)
+- ✅ **Etapa 6**: Screenshots con Selenium WebDriver
+- 🔄 **Etapa 7-8**: Análisis de rendimiento e imágenes (en progreso)
 
 ## 👤 Autor
 
