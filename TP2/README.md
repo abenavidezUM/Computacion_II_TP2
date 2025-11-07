@@ -284,12 +284,20 @@ pytest tests/test_processor.py -v
 - Generación de thumbnails configurables
 - Redimensionamiento y optimización de imágenes
 - Conversión entre formatos (JPEG, PNG, WEBP)
-- Descarga asíncrona de imágenes
+- Descarga síncrona de imágenes (compatible con multiprocessing)
 - Procesamiento batch de múltiples imágenes
 
-**Próximas etapas:**
-- Etapa 9: Manejo de errores y robustez
-- Etapa 10: Testing completo y documentación
+**Etapa 9 - Completada ✓**
+- Módulo de validadores robusto (common/validators.py)
+- Módulo de límites de recursos (common/limits.py)
+- Validación completa de URLs y parámetros
+- Límites de recursos en todas las operaciones
+- Documento de códigos de error (ERROR_CODES.md)
+- Manejo de errores estructurado y consistente
+- Degradación graciosa ante fallos parciales
+
+**Próxima etapa:**
+- Etapa 10: Testing exhaustivo y documentación final
 
 ### Contribuir
 

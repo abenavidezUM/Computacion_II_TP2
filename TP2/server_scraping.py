@@ -151,14 +151,17 @@ async def handle_scrape(request: web.Request) -> web.Response:
                 status=400
             )
         
-        # Validación básica de URL
-        if not url.startswith(('http://', 'https://')):
-            logger.warning(f"URL inválida desde {client_ip}: {url}")
+        # Validación robusta de URL
+        from common.validators import validate_url
+        is_valid, error_msg = validate_url(url)
+        if not is_valid:
+            logger.warning(f"URL inválida desde {client_ip}: {url} - {error_msg}")
             return web.json_response(
                 {
                     'status': 'error',
-                    'message': 'Invalid URL format',
-                    'details': 'URL must start with http:// or https://'
+                    'message': 'Invalid URL',
+                    'details': error_msg,
+                    'url': url[:100]  # Limitar longitud en respuesta
                 },
                 status=400
             )

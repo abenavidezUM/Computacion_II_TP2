@@ -264,7 +264,7 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                     }
             
             elif task_type == 'thumbnails':
-                # Generación de thumbnails real
+                # Generación de thumbnails real con validaciones
                 image_urls = task.get('image_urls', [])
                 
                 if not image_urls:
@@ -274,16 +274,44 @@ class ProcessingRequestHandler(socketserver.BaseRequestHandler):
                         'message': 'image_urls is required for thumbnails task'
                     }
                 
+                # Validar y sanitizar parámetros
+                from common.limits import (
+                    get_safe_max_images,
+                    get_safe_dimension,
+                    get_safe_quality,
+                    MAX_IMAGE_URLS,
+                    SUPPORTED_IMAGE_FORMATS
+                )
+                from common.validators import validate_image_format
+                
+                # Limitar número de URLs
+                if len(image_urls) > MAX_IMAGE_URLS:
+                    logger.warning(f"Demasiadas URLs ({len(image_urls)}), limitando a {MAX_IMAGE_URLS}")
+                    image_urls = image_urls[:MAX_IMAGE_URLS]
+                
                 logger.info(f"Thumbnail generation request para: {len(image_urls)} imágenes")
                 
                 # Importar módulo de procesamiento de imágenes
                 from processor.image_processor import process_page_images
                 
-                # Obtener parámetros opcionales
-                max_images = task.get('max_images', 5)
-                thumbnail_size = tuple(task.get('thumbnail_size', [150, 150]))
-                format_out = task.get('format', 'JPEG')
-                quality = task.get('quality', 85)
+                # Obtener y validar parámetros opcionales
+                max_images = get_safe_max_images(task.get('max_images', 5))
+                
+                # Validar dimensiones
+                size_list = task.get('thumbnail_size', [150, 150])
+                if isinstance(size_list, list) and len(size_list) == 2:
+                    thumbnail_size = get_safe_dimension(size_list[0], size_list[1], 500)
+                else:
+                    thumbnail_size = (150, 150)
+                
+                # Validar formato
+                format_out = task.get('format', 'JPEG').upper()
+                is_valid_format, _ = validate_image_format(format_out)
+                if not is_valid_format:
+                    format_out = 'JPEG'
+                
+                # Validar calidad
+                quality = get_safe_quality(task.get('quality', 85))
                 
                 # Procesar imágenes de forma síncrona
                 thumbnails = process_page_images(
